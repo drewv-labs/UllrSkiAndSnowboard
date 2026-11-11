@@ -1,8 +1,12 @@
+<div align="center">
+
+![Icon](Thunderstore/icon.png)
+
 # Ullr's Peak: Mythic Ski & Snowboard (`UllrSkiAndSnowboard`)
 
 A multiplayer Valheim mod (`BepInEx 5` + `Jötunn`) that lets you and your friends carve down Valheim's mountains on mythic Norse skis and snowboards — complete with buildable jump ramps, timed slalom race gates, and chained uphill rope tows.
 
-![Icon](Thunderstore/icon.png)
+</div>
 
 ## Features
 
