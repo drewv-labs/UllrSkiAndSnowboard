@@ -24,7 +24,7 @@ namespace UllrSkiAndSnowboard
     {
         public const string PluginGuid = "com.jimmylab.ullrski";
         public const string PluginName = "Ullr's Peak: Mythic Ski & Snowboard";
-        public const string PluginVersion = "1.0.0";
+        public const string PluginVersion = "1.0.1";
 
         public const string ToggleRideButtonName = "Ullr_ToggleRide";
         public const string PieceCategoryName = "Ullr's Peak";
