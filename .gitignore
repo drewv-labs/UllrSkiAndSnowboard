@@ -1,0 +1,12 @@
+# .NET / MSBuild artifacts
+bin/
+obj/
+dist/
+*.user
+*.suo
+
+# macOS / Editor
+.DS_Store
+.vs/
+.vscode/
+.idea/

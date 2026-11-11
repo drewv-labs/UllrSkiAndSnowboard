@@ -1,0 +1,10 @@
+{
+  "name": "UllrSkiAndSnowboard",
+  "version_number": "1.0.0",
+  "website_url": "https://github.com/dvandagriff/UllrSkiAndSnowboard""https://github.com/drewv-labs/UllrSkiAndSnowboard",
+  "description": "Mythic Norse skiing and snowboarding down Valheim's mountains! Includes Ullr's Frost-Rune Skis, Moder's Snowboard, Frost Resistance, carving physics, bunny-hops, spins/grabs, Jump Ramps, Slalom Gates, and Runic Rope Tows.",
+  "dependencies": [
+    "denikson-BepInExPack_Valheim-5.4.2333",
+    "ValheimModding-Jotunn-2.28.0"
+  ]
+}
