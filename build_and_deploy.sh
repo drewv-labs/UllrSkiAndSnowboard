@@ -5,6 +5,7 @@ MOD_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 SERVER_DIR="${ULLR_STAGE_DIR:-$MOD_ROOT/../zedbook-valheim-server}"
 REMOTE_HOST="${SKIHEIM_REMOTE_HOST:-}"
 REMOTE_PLUGINS_DIR="${SKIHEIM_REMOTE_PLUGINS_DIR:-/opt/stacks/skiheim-server/config/bepinex/plugins}"
+REMOTE_DATA_PLUGINS_DIR="${SKIHEIM_REMOTE_DATA_PLUGINS_DIR:-/opt/stacks/skiheim-server/data/bepinex/BepInEx/plugins}"
 VALHEIM_CLIENT_DIR="${VALHEIM_DIR:-$HOME/Library/Application Support/Steam/steamapps/common/Valheim}"
 
 MOD_VERSION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version_number"])' "$MOD_ROOT/Thunderstore/manifest.json")"
@@ -13,6 +14,7 @@ WEBSITE_URL="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).g
 NAMESPACE="${THUNDERSTORE_NAMESPACE:-JimmyLab}"
 PACKAGE_PREFIX="${NAMESPACE}-${MOD_NAME}-"
 PACKAGE_ID="${NAMESPACE}-${MOD_NAME}-${MOD_VERSION}"
+JOTUNN_ID="ValheimModding-Jotunn-2.30.2"
 
 export DOTNET_ROOT="${DOTNET_ROOT:-$HOME/.dotnet}"
 export PATH="$DOTNET_ROOT:$PATH"
@@ -60,7 +62,7 @@ if [ -d "$VALHEIM_CLIENT_DIR/modpacks/downloads" ]; then
 
     MODPACK_DIR="$VALHEIM_CLIENT_DIR/modpacks/UllrsPeakModpack"
     mkdir -p "$MODPACK_DIR"
-    rm -f "$MODPACK_DIR/${PACKAGE_PREFIX}"*
+    rm -f "$MODPACK_DIR/${PACKAGE_PREFIX}"* "$MODPACK_DIR/ValheimModding-Jotunn-"*
     cat > "$MODPACK_DIR/manifest.saved" << EOF
 {
   "name": "UllrsPeakModpack",
@@ -69,21 +71,21 @@ if [ -d "$VALHEIM_CLIENT_DIR/modpacks/downloads" ]; then
   "description": "Minimal modpack for Ullr's Peak Ski & Snowboard",
   "dependencies": [
     "denikson-BepInExPack_Valheim-5.4.2333",
-    "ValheimModding-Jotunn-2.28.0",
+    "${JOTUNN_ID}",
     "${PACKAGE_ID}"
   ]
 }
 EOF
     ln -sfn "$DL_MOD_DIR" "$MODPACK_DIR/$PACKAGE_ID"
-    if [ -d "$VALHEIM_CLIENT_DIR/modpacks/downloads/ValheimModding-Jotunn-2.28.0" ]; then
-        ln -sfn "$VALHEIM_CLIENT_DIR/modpacks/downloads/ValheimModding-Jotunn-2.28.0" "$MODPACK_DIR/ValheimModding-Jotunn-2.28.0"
+    if [ -d "$VALHEIM_CLIENT_DIR/modpacks/downloads/$JOTUNN_ID" ]; then
+        ln -sfn "$VALHEIM_CLIENT_DIR/modpacks/downloads/$JOTUNN_ID" "$MODPACK_DIR/$JOTUNN_ID"
     fi
     echo "Registered selectable modpack profile: UllrsPeakModpack ($MOD_VERSION)"
 fi
 
 echo "=== [4/4] Optional Dedicated Server Sync ==="
 if [ -n "$REMOTE_HOST" ] && ssh -o BatchMode=yes -o ConnectTimeout=3 "$REMOTE_HOST" "test -d '$REMOTE_PLUGINS_DIR'" 2>/dev/null; then
-    ssh "$REMOTE_HOST" "rm -rf '$REMOTE_PLUGINS_DIR/${PACKAGE_PREFIX}'*"
+    ssh "$REMOTE_HOST" "rm -rf '$REMOTE_PLUGINS_DIR/${PACKAGE_PREFIX}'* '$REMOTE_DATA_PLUGINS_DIR/${PACKAGE_PREFIX}'*"
     rsync -az --delete "$STAGE_DIR/" "$REMOTE_HOST:$REMOTE_PLUGINS_DIR/$PACKAGE_ID/"
     echo "Synced $PACKAGE_ID to $REMOTE_HOST:$REMOTE_PLUGINS_DIR/$PACKAGE_ID"
 elif [ -d "$SERVER_DIR" ]; then

@@ -24,7 +24,7 @@ namespace UllrSkiAndSnowboard
     {
         public const string PluginGuid = "com.jimmylab.ullrski";
         public const string PluginName = "Ullr's Peak: Mythic Ski & Snowboard";
-        public const string PluginVersion = "1.0.1";
+        public const string PluginVersion = "1.0.2";
 
         public const string ToggleRideButtonName = "Ullr_ToggleRide";
         public const string PieceCategoryName = "Ullr's Peak";
@@ -43,6 +43,7 @@ namespace UllrSkiAndSnowboard
         public static ConfigEntry<bool> AutoEngageOnSlope { get; private set; }
         public static ConfigEntry<bool> AutoMarkNearestPeak { get; private set; }
         public static ConfigEntry<bool> ShowRidingHud { get; private set; }
+        public static ConfigEntry<bool> ShowStowedGearOnBack { get; private set; }
 
         private Harmony _harmony;
         private ButtonConfig _toggleRideButton;
@@ -103,6 +104,9 @@ namespace UllrSkiAndSnowboard
 
             ShowRidingHud = Config.Bind("3 - Controls & HUD (Client)", "ShowRidingHud", true,
                 "Display the compact speedometer, hop-charge, and slalom timer widget while actively riding.");
+
+            ShowStowedGearOnBack = Config.Bind("3 - Controls & HUD (Client)", "ShowStowedGearOnBack", true,
+                "Show equipped Skis or Snowboard strapped diagonally across your Viking's back when walking.");
         }
 
         private void RegisterInputs()
@@ -472,6 +476,7 @@ namespace UllrSkiAndSnowboard
 
         private static void StripClonedItemVisuals(GameObject prefab)
         {
+            prefab.transform.localScale = Vector3.one;
             for (int i = prefab.transform.childCount - 1; i >= 0; i--)
             {
                 DestroyImmediate(prefab.transform.GetChild(i).gameObject);

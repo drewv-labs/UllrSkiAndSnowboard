@@ -7,13 +7,14 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>UllrSkiAndSnowboard</AssemblyName>
     <RootNamespace>UllrSkiAndSnowboard</RootNamespace>
-    <Version Condition="'$(Version)' == ''">1.0.1</Version>
+    <Version Condition="'$(Version)' == ''">1.0.2</Version>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <ValheimDir Condition="'$(ValheimDir)' == ''">$(HOME)/Library/Application Support/Steam/steamapps/common/Valheim</ValheimDir>
     <ManagedDir Condition="Exists('$(ValheimDir)/Valheim.app/Contents/Resources/Data/Managed')">$(ValheimDir)/Valheim.app/Contents/Resources/Data/Managed</ManagedDir>
     <ManagedDir Condition="'$(ManagedDir)' == '' And Exists('$(ValheimDir)/valheim_Data/Managed')">$(ValheimDir)/valheim_Data/Managed</ManagedDir>
     <BepInExCoreDir>$(ValheimDir)/BepInEx/core</BepInExCoreDir>
-    <JotunnDir>$(ValheimDir)/BepInEx/plugins/ValheimModding-Jotunn-2.28.0/plugins</JotunnDir>
+    <JotunnDir Condition="Exists('$(ValheimDir)/BepInEx/plugins/ValheimModding-Jotunn-2.30.2/plugins')">$(ValheimDir)/BepInEx/plugins/ValheimModding-Jotunn-2.30.2/plugins</JotunnDir>
+    <JotunnDir Condition="'$(JotunnDir)' == '' And Exists('$(ValheimDir)/modpacks/downloads/ValheimModding-Jotunn-2.30.2/plugins')">$(ValheimDir)/modpacks/downloads/ValheimModding-Jotunn-2.30.2/plugins</JotunnDir>
   </PropertyGroup>
 
   <ItemGroup>

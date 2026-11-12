@@ -7,11 +7,16 @@ namespace UllrSkiAndSnowboard.Visuals
 {
     public class SkiVisualRig : MonoBehaviour
     {
+        // Stand length (+Z) vertically (+Y), base (-Y) flush against spine, rune deck (+Y) facing outward (-Z),
+        // with a 22-degree diagonal mountaineer strap tilt across the back.
+        private static readonly Quaternion StowedBackLocalRot =
+            Quaternion.Euler(8f, 0f, 22f) * Quaternion.Euler(-90f, 0f, 0f);
+
         private Player _player;
         private VisEquipment _visEquip;
         private PlayerSkiController _controller;
 
-        // Underfoot active riding rig
+        // Underfoot active riding rig (parented to Player root -> guaranteed 1.0 lossyScale)
         private GameObject _activeRoot;
         private GameObject _skisGroup;
         private GameObject _snowboardGroup;
@@ -20,11 +25,11 @@ namespace UllrSkiAndSnowboard.Visuals
         private ParticleSystem _snowSpray;
         private Light _frostAuraLight;
 
-        // Hand-held ski poles
+        // Hand-tracked ski poles (parented to Player root -> immune to 100x Armature FBX bone scale!)
         private GameObject _leftPoleObj;
         private GameObject _rightPoleObj;
 
-        // Back-mounted stowed rig
+        // Back-mounted stowed rig (parented to Player root -> immune to 100x Armature FBX bone scale!)
         private GameObject _stowedBackRoot;
         private GameObject _stowedSkis;
         private GameObject _stowedBoard;
@@ -49,6 +54,7 @@ namespace UllrSkiAndSnowboard.Visuals
 
         private void OnDestroy()
         {
+            if (_activeRoot != null) Destroy(_activeRoot);
             if (_leftPoleObj != null) Destroy(_leftPoleObj);
             if (_rightPoleObj != null) Destroy(_rightPoleObj);
             if (_stowedBackRoot != null) Destroy(_stowedBackRoot);
@@ -61,6 +67,7 @@ namespace UllrSkiAndSnowboard.Visuals
             _activeRoot = new GameObject("UllrActiveRideRig");
             _activeRoot.transform.SetParent(transform, false);
             _activeRoot.transform.localPosition = new Vector3(0f, 0.03f, 0f);
+            _activeRoot.transform.localScale = Vector3.one;
 
             // 1. Twin Mythic Skis
             _skisGroup = new GameObject("TwinSkisGroup");
@@ -80,7 +87,7 @@ namespace UllrSkiAndSnowboard.Visuals
             // 4. Snow Spray Particle System
             _snowSpray = CreateSnowSpraySystem(_activeRoot.transform);
 
-            // 5. Mythic Frost Aura Light
+            // 5. Mythic Frost Aura Light (only active while riding)
             GameObject lightGo = new GameObject("UllrFrostGlow");
             lightGo.transform.SetParent(_activeRoot.transform, false);
             lightGo.transform.localPosition = new Vector3(0f, 0.35f, 0.1f);
@@ -91,43 +98,20 @@ namespace UllrSkiAndSnowboard.Visuals
             _frostAuraLight.intensity = 0.85f;
             _frostAuraLight.shadows = LightShadows.None;
 
-            // 6. Ski Poles attached to player hands if available
-            if (_visEquip != null)
-            {
-                if (_visEquip.m_leftHand != null)
-                {
-                    _leftPoleObj = CreatePoleInstance("UllrLeftSkiPole", _visEquip.m_leftHand);
-                }
-                if (_visEquip.m_rightHand != null)
-                {
-                    _rightPoleObj = CreatePoleInstance("UllrRightSkiPole", _visEquip.m_rightHand);
-                }
-                Transform backAnchor = _visEquip.m_backTool != null ? _visEquip.m_backTool : (_player.m_visual != null ? _player.m_visual.transform : null);
-                if (backAnchor != null)
-                {
-                    BuildStowedBackRig(backAnchor);
-                }
-            }
+            // 6. Ski Poles & Stowed Back Rig — parented to Player root (1.0 scale) and positioned in LateUpdate
+            // so Valheim's 100x Armature FBX bone scale never inflates meshes!
+            _leftPoleObj = CreatePoleInstance("UllrLeftSkiPole", transform);
+            _rightPoleObj = CreatePoleInstance("UllrRightSkiPole", transform);
+            BuildStowedBackRig();
 
             _activeRoot.SetActive(false);
         }
 
-        private void BuildStowedBackRig(Transform backAnchor)
+        private void BuildStowedBackRig()
         {
             _stowedBackRoot = new GameObject("UllrStowedBackGear");
-            _stowedBackRoot.transform.SetParent(backAnchor, false);
-            // Adjust depending on whether attached to m_backTool bone or m_visual root
-            if (_visEquip != null && backAnchor == _visEquip.m_backTool)
-            {
-                _stowedBackRoot.transform.localPosition = new Vector3(0f, 0f, -0.06f);
-                _stowedBackRoot.transform.localRotation = Quaternion.Euler(78f, 18f, 25f);
-            }
-            else
-            {
-                _stowedBackRoot.transform.localPosition = new Vector3(0f, 1.15f, -0.24f);
-                _stowedBackRoot.transform.localRotation = Quaternion.Euler(82f, 0f, 28f);
-            }
-            _stowedBackRoot.transform.localScale = Vector3.one * 0.78f;
+            _stowedBackRoot.transform.SetParent(transform, false);
+            _stowedBackRoot.transform.localScale = Vector3.one * 0.68f;
 
             _stowedSkis = new GameObject("StowedSkis");
             _stowedSkis.transform.SetParent(_stowedBackRoot.transform, false);
@@ -150,7 +134,6 @@ namespace UllrSkiAndSnowboard.Visuals
             AddMeshChild(ski.transform, "Deck", ProceduralAssets.SkiMesh, ProceduralAssets.DarkWoodMat);
             AddMeshChild(ski.transform, "RuneInlay", ProceduralAssets.SkiRuneMesh, ProceduralAssets.FrostRuneMat);
 
-            // Binding block underfoot
             GameObject binding = GameObject.CreatePrimitive(PrimitiveType.Cube);
             Destroy(binding.GetComponent<Collider>());
             binding.name = "Binding";
@@ -169,7 +152,6 @@ namespace UllrSkiAndSnowboard.Visuals
             AddMeshChild(board.transform, "Deck", ProceduralAssets.SnowboardMesh, ProceduralAssets.SilverEdgeMat);
             AddMeshChild(board.transform, "RuneSpine", ProceduralAssets.SnowboardRuneMesh, ProceduralAssets.FrostRuneMat);
 
-            // Front & Rear Viking Boot Bindings
             float[] zPositions = { -0.26f, 0.26f };
             float[] angles = { -12f, 15f };
             for (int i = 0; i < 2; i++)
@@ -185,12 +167,11 @@ namespace UllrSkiAndSnowboard.Visuals
             }
         }
 
-        private static GameObject CreatePoleInstance(string name, Transform handBone)
+        private static GameObject CreatePoleInstance(string name, Transform rootParent)
         {
             GameObject root = new GameObject(name);
-            root.transform.SetParent(handBone, false);
-            root.transform.localPosition = Vector3.zero;
-            root.transform.localRotation = Quaternion.Euler(-55f, 0f, 0f);
+            root.transform.SetParent(rootParent, false);
+            root.transform.localScale = Vector3.one;
 
             AddMeshChild(root.transform, "PoleShaft", ProceduralAssets.PoleMesh, ProceduralAssets.SilverEdgeMat);
 
@@ -199,7 +180,7 @@ namespace UllrSkiAndSnowboard.Visuals
             pommel.name = "RunePommel";
             pommel.transform.SetParent(root.transform, false);
             pommel.transform.localPosition = new Vector3(0f, 0.13f, 0f);
-            pommel.transform.localScale = Vector3.one * 0.048f;
+            pommel.transform.localScale = Vector3.one * 0.045f;
             pommel.GetComponent<MeshRenderer>().sharedMaterial = ProceduralAssets.FrostRuneMat;
 
             root.SetActive(false);
@@ -289,19 +270,13 @@ namespace UllrSkiAndSnowboard.Visuals
 
             if (activeMode == RideGearType.None)
             {
-                // Walking / building on the mountain: show stowed gear on back!
+                // Walking / building on the mountain
                 if (_activeRoot.activeSelf) _activeRoot.SetActive(false);
                 if (_leftPoleObj != null && _leftPoleObj.activeSelf) _leftPoleObj.SetActive(false);
                 if (_rightPoleObj != null && _rightPoleObj.activeSelf) _rightPoleObj.SetActive(false);
 
                 RestorePlayerBodyStanceIfNeeded();
-
-                if (_stowedBackRoot != null)
-                {
-                    if (!_stowedBackRoot.activeSelf) _stowedBackRoot.SetActive(true);
-                    _stowedSkis.SetActive(equipped == RideGearType.Skis);
-                    _stowedBoard.SetActive(equipped == RideGearType.Snowboard);
-                }
+                UpdateStowedBackGear(equipped);
                 return;
             }
 
@@ -324,7 +299,6 @@ namespace UllrSkiAndSnowboard.Visuals
             bool wipedOut = (flags & RideSyncFlags.WipedOut) != 0;
             bool poling = (flags & RideSyncFlags.Poling) != 0;
 
-            // Align ski/board platform to ground normal when grounded
             Quaternion desiredSlopeLocal = Quaternion.identity;
             if (!airborne && UnityEngine.Physics.Raycast(transform.position + Vector3.up * 0.7f, Vector3.down, out RaycastHit hit, 1.4f,
                     LayerMask.GetMask("terrain", "Default", "static_solid", "piece"), QueryTriggerInteraction.Ignore))
@@ -345,7 +319,6 @@ namespace UllrSkiAndSnowboard.Visuals
             _activeRoot.transform.localRotation =
                 _smoothedSlopeAlign * Quaternion.Euler(grabPitch, extraYaw, lean + wipeRoll);
 
-            // Position trails narrow on snowboard, wider on twin skis
             if (_leftTrail != null && _rightTrail != null)
             {
                 float xOff = isBoard ? 0.11f : 0.19f;
@@ -356,7 +329,7 @@ namespace UllrSkiAndSnowboard.Visuals
                 _rightTrail.emitting = emitTrail;
             }
 
-            // Pose the Viking character mesh (sideways snowboarder crouch, downhill ski tuck, air grab, or wipeout!)
+            Quaternion visualWorldRot = transform.rotation;
             if (_player.m_visual != null)
             {
                 _wasRidingVisualApplied = true;
@@ -368,30 +341,14 @@ namespace UllrSkiAndSnowboard.Visuals
                 _player.m_visual.transform.localPosition = new Vector3(0f, crouchDrop, 0f);
                 _player.m_visual.transform.localRotation =
                     _smoothedSlopeAlign * Quaternion.Euler(crouchPitch, stanceYaw, bodyRoll);
+                visualWorldRot = _player.m_visual.transform.rotation;
             }
 
-            // Show Runic Ski Poles in hands when skiing (and weapons aren't drawn)
+            // Update 1:1 world-scale Ski Poles at the player's hands
             bool showPoles = !isBoard && !wipedOut;
-            if (_leftPoleObj != null)
-            {
-                if (_leftPoleObj.activeSelf != showPoles) _leftPoleObj.SetActive(showPoles);
-                if (showPoles)
-                {
-                    float swing = poling ? Mathf.Sin(Time.time * 18f) * 32f : (tucking ? -35f : 0f);
-                    _leftPoleObj.transform.localRotation = Quaternion.Euler(-55f + swing, 0f, 0f);
-                }
-            }
-            if (_rightPoleObj != null)
-            {
-                if (_rightPoleObj.activeSelf != showPoles) _rightPoleObj.SetActive(showPoles);
-                if (showPoles)
-                {
-                    float swing = poling ? Mathf.Sin(Time.time * 18f) * 32f : (tucking ? -35f : 0f);
-                    _rightPoleObj.transform.localRotation = Quaternion.Euler(-55f + swing, 0f, 0f);
-                }
-            }
+            UpdateHandPole(_leftPoleObj, showPoles, isLeft: true, visualWorldRot, poling, tucking);
+            UpdateHandPole(_rightPoleObj, showPoles, isLeft: false, visualWorldRot, poling, tucking);
 
-            // Snow spray & aura intensity
             if (_snowSpray != null)
             {
                 var emission = _snowSpray.emission;
@@ -412,7 +369,6 @@ namespace UllrSkiAndSnowboard.Visuals
                 _frostAuraLight.intensity = Mathf.Lerp(0.65f, 1.55f, Mathf.Clamp01(speed / 24f)) + (grabbing ? 0.5f : 0f);
             }
 
-            // Rhythmic snow-carve audio pulse on grounded movement
             if (!airborne && speed > 3.2f && ProceduralAssets.SnowStepClip != null)
             {
                 _carveStepTimer -= Time.deltaTime * Mathf.Lerp(1.2f, 4.2f, Mathf.Clamp01(speed / 24f));
@@ -423,6 +379,69 @@ namespace UllrSkiAndSnowboard.Visuals
                     AudioSource.PlayClipAtPoint(ProceduralAssets.SnowStepClip, transform.position, vol);
                 }
             }
+        }
+
+        private void UpdateStowedBackGear(RideGearType equipped)
+        {
+            if (_stowedBackRoot == null) return;
+
+            bool showBack = (UllrPlugin.ShowStowedGearOnBack == null || UllrPlugin.ShowStowedGearOnBack.Value)
+                            && !_player.IsSwimming()
+                            && !_player.IsAttached();
+
+            if (!showBack)
+            {
+                if (_stowedBackRoot.activeSelf) _stowedBackRoot.SetActive(false);
+                return;
+            }
+
+            if (!_stowedBackRoot.activeSelf) _stowedBackRoot.SetActive(true);
+            _stowedSkis.SetActive(equipped == RideGearType.Skis);
+            _stowedBoard.SetActive(equipped == RideGearType.Snowboard);
+
+            Quaternion visualRot = _player.m_visual != null ? _player.m_visual.transform.rotation : transform.rotation;
+            bool crouching = _player.IsCrouching();
+
+            Vector3 fallbackAnchor = transform.position + visualRot * new Vector3(0f, crouching ? 0.90f : 1.18f, -0.22f);
+            Vector3 backPos = fallbackAnchor;
+
+            if (_visEquip != null && _visEquip.m_backShield != null)
+            {
+                Vector3 bonePos = _visEquip.m_backShield.position - (visualRot * Vector3.forward) * 0.06f;
+                if ((bonePos - fallbackAnchor).sqrMagnitude < 0.45f)
+                {
+                    backPos = bonePos;
+                }
+            }
+
+            Quaternion crouchPitch = crouching ? Quaternion.Euler(20f, 0f, 0f) : Quaternion.identity;
+            _stowedBackRoot.transform.position = backPos;
+            _stowedBackRoot.transform.rotation = visualRot * crouchPitch * StowedBackLocalRot;
+            _stowedBackRoot.transform.localScale = Vector3.one * 0.68f;
+        }
+
+        private void UpdateHandPole(GameObject poleObj, bool show, bool isLeft, Quaternion visualRot, bool poling, bool tucking)
+        {
+            if (poleObj == null) return;
+            if (poleObj.activeSelf != show) poleObj.SetActive(show);
+            if (!show) return;
+
+            float side = isLeft ? -1f : 1f;
+            Vector3 fallbackHand = transform.position + visualRot * new Vector3(side * 0.34f, tucking ? 0.78f : 0.94f, 0.16f);
+            Vector3 handPos = fallbackHand;
+
+            Transform bone = _visEquip != null ? (isLeft ? _visEquip.m_leftHand : _visEquip.m_rightHand) : null;
+            if (bone != null && (bone.position - fallbackHand).sqrMagnitude < 1.5f)
+            {
+                handPos = bone.position;
+            }
+
+            float phase = isLeft ? 0f : Mathf.PI;
+            float swing = poling ? Mathf.Sin(Time.time * 16f + phase) * 28f : (tucking ? 22f : 0f);
+            // Positive +52 deg around +X tilts the -Y pole shaft downward and backward (-Z) behind the skier
+            poleObj.transform.position = handPos;
+            poleObj.transform.rotation = visualRot * Quaternion.Euler(52f + swing, side * 8f, side * -6f);
+            poleObj.transform.localScale = Vector3.one;
         }
 
         private void SetAllVisualsOff()
