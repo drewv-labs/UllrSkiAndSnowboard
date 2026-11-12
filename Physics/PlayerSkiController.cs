@@ -260,7 +260,7 @@ namespace UllrSkiAndSnowboard.Physics
             if (jumpPop && _player.m_body != null)
             {
                 Vector3 v = _player.m_body.linearVelocity;
-                v.y = Mathf.Max(v.y, 4.8f);
+                v.y = Mathf.Max(v.y, 4.2f);
                 _player.m_body.linearVelocity = v;
                 PlayClip(ProceduralAssets.JumpPopClip, 0.7f, 1.05f);
             }
@@ -279,7 +279,7 @@ namespace UllrSkiAndSnowboard.Physics
 
             if (active)
             {
-                Vector3 fwd = _player.m_body != null && _player.m_body.linearVelocity.sqrMagnitude > 2.2f
+                Vector3 fwd = _player.m_body != null && _player.m_body.linearVelocity.sqrMagnitude > 0.5f
                     ? Vector3.ProjectOnPlane(_player.m_body.linearVelocity, Vector3.up)
                     : Vector3.ProjectOnPlane(_player.GetLookDir(), Vector3.up);
                 if (fwd.sqrMagnitude < 0.01f) fwd = _player.transform.forward;
@@ -324,7 +324,7 @@ namespace UllrSkiAndSnowboard.Physics
             Rigidbody body = _player.m_body;
             body.useGravity = true;
 
-            // Keep fall-damage tracker continuously reset while actively riding; landings are evaluated in OnSkiGroundLanding!
+            // Keep fall-damage tracker continuously reset while actively riding; landings are evaluated in EvaluateAirLanding!
             _player.m_maxAirAltitude = _player.transform.position.y;
 
             if (_activeTowStart != null)
@@ -336,13 +336,13 @@ namespace UllrSkiAndSnowboard.Physics
             bool grounded = SampleGround(out Vector3 groundNormal, out bool onSnow, out RunicJumpRamp onRamp);
             _smoothedNormal = Vector3.Slerp(_smoothedNormal, grounded ? groundNormal : Vector3.up, dt * 10f).normalized;
 
-            // Handle wipeout tumble recovery
+            // Handle wipeout tumble recovery (scaled to 40% speed regime)
             if (_wipeoutTimer > 0f)
             {
                 _wipeoutTimer -= dt;
                 Vector3 v = body.linearVelocity;
                 Vector3 horiz = new Vector3(v.x, 0f, v.z);
-                horiz = Vector3.MoveTowards(horiz, Vector3.zero, 14f * dt);
+                horiz = Vector3.MoveTowards(horiz, Vector3.zero, 5.6f * dt);
                 body.linearVelocity = new Vector3(horiz.x, v.y, horiz.z);
                 _prevPlanarVel = horiz;
                 _leanAngle = Mathf.Lerp(_leanAngle, 55f, dt * 8f);
@@ -356,13 +356,13 @@ namespace UllrSkiAndSnowboard.Physics
                 return;
             }
 
-            // Detect high-speed head-on obstacle collision (trees, boulders, cliffs)
+            // Detect high-speed head-on obstacle collision (trees, boulders, cliffs) — scaled to 40% speed curve
             Vector3 currentPlanar = new Vector3(body.linearVelocity.x, 0f, body.linearVelocity.z);
             bool brakingInput = _player.TakeInput() && GetMoveForwardInput() < -0.25f;
-            if (_prevPlanarVel.magnitude > 13.5f && !brakingInput)
+            if (_prevPlanarVel.magnitude > 5.8f && !brakingInput)
             {
                 float speedLoss = _prevPlanarVel.magnitude - currentPlanar.magnitude;
-                if (speedLoss > 9.5f)
+                if (speedLoss > 4.0f)
                 {
                     TriggerWipeout("Crashed! Watch those trees & rocks!");
                     return;
@@ -373,7 +373,8 @@ namespace UllrSkiAndSnowboard.Physics
             float fwdInput = _player.TakeInput() ? GetMoveForwardInput() : 0f;
 
             bool isBoard = _equippedGear == RideGearType.Snowboard;
-            float maxSpeed = (isBoard ? 24.5f : 26.0f) * UllrPlugin.MaxSpeedMultiplier.Value;
+            // 40% of original 24.5 / 26.0 m/s -> 9.8 m/s (~35 km/h) Snowboard, 10.4 m/s (~37 km/h) Skis
+            float maxSpeed = (isBoard ? 9.8f : 10.4f) * UllrPlugin.MaxSpeedMultiplier.Value;
 
             RideSyncFlags flags = RideSyncFlags.None;
 
@@ -397,7 +398,7 @@ namespace UllrSkiAndSnowboard.Physics
                 else
                 {
                     _nonSnowGraceTimer -= dt;
-                    if (currentPlanar.magnitude < 1.6f && _nonSnowGraceTimer <= 0f)
+                    if (currentPlanar.magnitude < 0.65f && _nonSnowGraceTimer <= 0f)
                     {
                         SetRidingActive(false, silent: false);
                         return;
@@ -430,9 +431,9 @@ namespace UllrSkiAndSnowboard.Physics
                 // Project onto ground tangent plane while keeping slight downward stickiness so bumps don't chatter
                 Vector3 slopeVel = Vector3.ProjectOnPlane(vel, groundNormal);
 
-                // Slope gravity pull
-                float gravMult = 1.32f * UllrPlugin.SlopeAccelerationMultiplier.Value;
-                if (fwdInput > 0.2f && slopeVel.magnitude > 6.0f)
+                // Slope gravity pull — 40% of original 1.32f curve -> 0.528f
+                float gravMult = 0.528f * UllrPlugin.SlopeAccelerationMultiplier.Value;
+                if (fwdInput > 0.2f && slopeVel.magnitude > 2.4f)
                 {
                     gravMult *= 1.15f; // Aero tuck boost
                     flags |= RideSyncFlags.Tucking;
@@ -440,18 +441,18 @@ namespace UllrSkiAndSnowboard.Physics
                 Vector3 slopeGravity = Vector3.ProjectOnPlane(UnityEngine.Physics.gravity * gravMult, groundNormal);
                 slopeVel += slopeGravity * dt;
 
-                // Jump Ramp boost & lip launch!
+                // Jump Ramp boost & lip launch! (scaled to 40% horizontal speed curve)
                 if (onRamp != null)
                 {
                     Vector3 rampFwd = Vector3.ProjectOnPlane(onRamp.transform.forward, groundNormal).normalized;
                     if (Vector3.Dot(slopeFwd, rampFwd) > 0.25f)
                     {
-                        slopeVel += rampFwd * (6.5f * dt);
+                        slopeVel += rampFwd * (2.6f * dt);
                         Vector3 localOnRamp = onRamp.transform.InverseTransformPoint(_player.transform.position);
-                        if (localOnRamp.z > 2.05f && _rampBoostCooldown <= 0f && slopeVel.magnitude > 5.0f)
+                        if (localOnRamp.z > 2.05f && _rampBoostCooldown <= 0f && slopeVel.magnitude > 2.0f)
                         {
                             _rampBoostCooldown = 0.65f;
-                            Vector3 launchVel = slopeVel + Vector3.up * 4.6f + onRamp.transform.forward * 2.8f;
+                            Vector3 launchVel = slopeVel + Vector3.up * 3.8f + onRamp.transform.forward * 1.12f;
                             body.linearVelocity = launchVel;
                             _prevPlanarVel = new Vector3(launchVel.x, 0f, launchVel.z);
                             _wasAirborne = true;
@@ -481,25 +482,25 @@ namespace UllrSkiAndSnowboard.Physics
                     vFwd += carvedLat * 0.68f;
                 }
 
-                // Pole-push / skate-push on flat or slight uphill when pressing W
-                if (fwdInput > 0.25f && vFwd < 9.2f && _poleCooldown <= 0f)
+                // Pole-push / skate-push on flat or slight uphill when pressing W (40% of original 9.2 / 3.5 / 4.1)
+                if (fwdInput > 0.25f && vFwd < 3.68f && _poleCooldown <= 0f)
                 {
                     _poleCooldown = 0.58f;
                     _poleAnimTimer = 0.36f;
-                    vFwd += isBoard ? 3.5f : 4.1f;
+                    vFwd += isBoard ? 1.40f : 1.64f;
                     PlayClip(ProceduralAssets.SnowStepClip, 0.55f, 1.12f);
                 }
                 if (_poleAnimTimer > 0f) flags |= RideSyncFlags.Poling;
 
-                // Braking / Hockey-stop when holding S
+                // Braking / Hockey-stop when holding S (scaled proportionally for 10 m/s top speed)
                 if (fwdInput < -0.2f)
                 {
                     flags |= RideSyncFlags.Braking;
-                    vFwd = Mathf.MoveTowards(vFwd, 0f, 12.5f * Mathf.Abs(fwdInput) * dt);
-                    vLat = Mathf.MoveTowards(vLat, 0f, 14.0f * dt);
+                    vFwd = Mathf.MoveTowards(vFwd, 0f, 5.8f * Mathf.Abs(fwdInput) * dt);
+                    vLat = Mathf.MoveTowards(vLat, 0f, 6.5f * dt);
                 }
 
-                // Natural snow & aerodynamic drag
+                // Natural snow & aerodynamic drag (quadratic drag scaled by 1/0.4 -> 0.0035f so v(t) is 40% across all slopes)
                 float baseDrag = (onSnow || onRamp != null) ? 0.042f : (UllrPlugin.AllowNonSnowRiding.Value ? 0.085f : 0.78f);
                 if ((flags & RideSyncFlags.Tucking) != 0) baseDrag *= 0.65f;
                 if (_chargingHop) flags |= RideSyncFlags.Tucking;
@@ -507,7 +508,7 @@ namespace UllrSkiAndSnowboard.Physics
                 float spd = Mathf.Sqrt(vFwd * vFwd + vLat * vLat);
                 if (spd > 0.01f)
                 {
-                    float aeroDecel = (baseDrag * spd + 0.0014f * spd * spd) * dt;
+                    float aeroDecel = (baseDrag * spd + 0.0035f * spd * spd) * dt;
                     float newSpd = Mathf.Min(maxSpeed, Mathf.Max(0f, spd - aeroDecel));
                     float ratio = newSpd / spd;
                     vFwd *= ratio;
@@ -550,10 +551,10 @@ namespace UllrSkiAndSnowboard.Physics
                     flags |= RideSyncFlags.Grabbing;
                 }
 
-                // Slight air-drift control without killing launch speed
+                // Slight air-drift control without killing launch speed (40% scaled)
                 Vector3 v = body.linearVelocity;
                 Quaternion headingRot = Quaternion.Euler(0f, _headingYaw, 0f);
-                Vector3 airAdjust = (headingRot * new Vector3(steerInput * 1.6f, 0f, fwdInput * 1.8f)) * dt;
+                Vector3 airAdjust = (headingRot * new Vector3(steerInput * 0.65f, 0f, fwdInput * 0.72f)) * dt;
                 Vector3 newHoriz = new Vector3(v.x + airAdjust.x, 0f, v.z + airAdjust.z);
                 if (newHoriz.magnitude > maxSpeed * 1.15f)
                 {
@@ -578,7 +579,7 @@ namespace UllrSkiAndSnowboard.Physics
             Vector3 a = _activeTowStart.transform.position;
             Vector3 b = _activeTowStart.UphillTarget.transform.position;
             float spanLen = Mathf.Max(1f, Vector3.Distance(a, b));
-            const float towSpeed = 11.5f;
+            const float towSpeed = 4.6f; // 40% of original 11.5 m/s (~17 km/h uphill pull)
 
             _towProgress += (towSpeed / spanLen) * dt;
             if (_towProgress >= 0.98f)
@@ -629,8 +630,8 @@ namespace UllrSkiAndSnowboard.Physics
             if (_player.m_body == null) return;
             float ratio = HopChargeRatio;
             bool isBoard = _equippedGear == RideGearType.Snowboard;
-            float basePop = isBoard ? 5.6f : 5.2f;
-            float maxPop = isBoard ? 8.3f : 7.7f;
+            float basePop = isBoard ? 4.8f : 4.5f;
+            float maxPop = isBoard ? 7.0f : 6.5f;
             float pop = Mathf.Lerp(basePop, maxPop, ratio);
 
             Vector3 v = _player.m_body.linearVelocity;
@@ -653,7 +654,7 @@ namespace UllrSkiAndSnowboard.Physics
             Vector3 v = body.linearVelocity;
             float speed = new Vector3(v.x, 0f, v.z).magnitude;
 
-            if (_airTime > 0.75f && speed > 11.0f && offAxis > 62f)
+            if (_airTime > 0.75f && speed > 4.4f && offAxis > 62f)
             {
                 TriggerWipeout("Caught an edge on landing!");
                 return;
@@ -664,7 +665,7 @@ namespace UllrSkiAndSnowboard.Physics
             if (v.y < -3f && groundNormal.y < 0.96f)
             {
                 Vector3 downhill = Vector3.ProjectOnPlane(Vector3.down, groundNormal).normalized;
-                float absorbed = Mathf.Min(7.5f, Mathf.Abs(v.y) * 0.38f);
+                float absorbed = Mathf.Min(3.0f, Mathf.Abs(v.y) * 0.20f);
                 projected += downhill * absorbed;
             }
 
@@ -673,7 +674,7 @@ namespace UllrSkiAndSnowboard.Physics
             {
                 // Landed 180 switch -> smoothly align forward heading to velocity if moving fast
                 Vector3 flatProj = new Vector3(projected.x, 0f, projected.z);
-                if (flatProj.sqrMagnitude > 4f)
+                if (flatProj.sqrMagnitude > 0.64f)
                 {
                     _headingYaw = Quaternion.LookRotation(flatProj.normalized, Vector3.up).eulerAngles.y;
                 }
@@ -690,9 +691,9 @@ namespace UllrSkiAndSnowboard.Physics
                         ? $"Clean {roundedSpin}° Frost Grab! (+Speed Boost)"
                         : $"Stomped {roundedSpin}° Spin!";
                     _player.Message(MessageHud.MessageType.TopLeft, trickLabel);
-                    if (projected.sqrMagnitude > 1f)
+                    if (projected.sqrMagnitude > 0.25f)
                     {
-                        projected += projected.normalized * (hadGrab ? 2.6f : 1.6f);
+                        projected += projected.normalized * (hadGrab ? 1.04f : 0.64f);
                     }
                     PlayClip(ProceduralAssets.FrostChimeClip, 0.75f, 1.25f);
                 }

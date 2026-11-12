@@ -231,7 +231,7 @@ namespace UllrSkiAndSnowboard.Visuals
             main.playOnAwake = false;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
             main.startLifetime = new ParticleSystem.MinMaxCurve(0.35f, 0.75f);
-            main.startSpeed = new ParticleSystem.MinMaxCurve(1.8f, 5.2f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(1.2f, 3.4f);
             main.startSize = new ParticleSystem.MinMaxCurve(0.10f, 0.34f);
             main.startColor = new Color(0.90f, 0.97f, 1f, 0.80f);
             main.gravityModifier = 0.65f;
@@ -324,7 +324,7 @@ namespace UllrSkiAndSnowboard.Visuals
                 float xOff = isBoard ? 0.11f : 0.19f;
                 _leftTrail.transform.localPosition = new Vector3(-xOff, 0.04f, -0.76f);
                 _rightTrail.transform.localPosition = new Vector3(xOff, 0.04f, -0.76f);
-                bool emitTrail = (!airborne && speed > 2.2f) || grabbing;
+                bool emitTrail = (!airborne && speed > 0.9f) || grabbing;
                 _leftTrail.emitting = emitTrail;
                 _rightTrail.emitting = emitTrail;
             }
@@ -352,11 +352,11 @@ namespace UllrSkiAndSnowboard.Visuals
             if (_snowSpray != null)
             {
                 var emission = _snowSpray.emission;
-                if (!airborne && speed > 2.5f)
+                if (!airborne && speed > 1.0f)
                 {
                     if (!_snowSpray.isPlaying) _snowSpray.Play();
                     float carveFactor = 1f + Mathf.Abs(lean) * 0.06f + (braking ? 2.6f : 0f) + (wipedOut ? 3.0f : 0f);
-                    emission.rateOverTime = Mathf.Clamp(speed * 3.8f * carveFactor, 0f, 160f);
+                    emission.rateOverTime = Mathf.Clamp(speed * 9.5f * carveFactor, 0f, 160f);
                 }
                 else
                 {
@@ -366,16 +366,16 @@ namespace UllrSkiAndSnowboard.Visuals
 
             if (_frostAuraLight != null)
             {
-                _frostAuraLight.intensity = Mathf.Lerp(0.65f, 1.55f, Mathf.Clamp01(speed / 24f)) + (grabbing ? 0.5f : 0f);
+                _frostAuraLight.intensity = Mathf.Lerp(0.65f, 1.55f, Mathf.Clamp01(speed / 9.6f)) + (grabbing ? 0.5f : 0f);
             }
 
-            if (!airborne && speed > 3.2f && ProceduralAssets.SnowStepClip != null)
+            if (!airborne && speed > 1.3f && ProceduralAssets.SnowStepClip != null)
             {
-                _carveStepTimer -= Time.deltaTime * Mathf.Lerp(1.2f, 4.2f, Mathf.Clamp01(speed / 24f));
+                _carveStepTimer -= Time.deltaTime * Mathf.Lerp(1.2f, 4.2f, Mathf.Clamp01(speed / 9.6f));
                 if (_carveStepTimer <= 0f)
                 {
                     _carveStepTimer = 0.42f;
-                    float vol = Mathf.Lerp(0.08f, 0.28f, Mathf.Clamp01(speed / 24f)) + (braking ? 0.18f : 0f);
+                    float vol = Mathf.Lerp(0.08f, 0.28f, Mathf.Clamp01(speed / 9.6f)) + (braking ? 0.18f : 0f);
                     AudioSource.PlayClipAtPoint(ProceduralAssets.SnowStepClip, transform.position, vol);
                 }
             }

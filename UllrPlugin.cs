@@ -74,12 +74,12 @@ namespace UllrSkiAndSnowboard
             ConfigurationManagerAttributes adminOnly = new ConfigurationManagerAttributes { IsAdminOnly = true };
 
             MaxSpeedMultiplier = Config.Bind("1 - Physics (Server Synced)", "MaxSpeedMultiplier", 1.0f,
-                new ConfigDescription("Multiplier on top downhill speed (~25 m/s / 90 km/h at 1.0).",
-                    new AcceptableValueRange<float>(0.5f, 2.5f), adminOnly));
+                new ConfigDescription("Multiplier on top downhill speed (~10 m/s / 36 km/h at 1.0).",
+                    new AcceptableValueRange<float>(0.25f, 3.0f), adminOnly));
 
             SlopeAccelerationMultiplier = Config.Bind("1 - Physics (Server Synced)", "SlopeAccelerationMultiplier", 1.0f,
                 new ConfigDescription("Multiplier on downhill slope gravity acceleration.",
-                    new AcceptableValueRange<float>(0.5f, 2.5f), adminOnly));
+                    new AcceptableValueRange<float>(0.25f, 3.0f), adminOnly));
 
             GrantFrostResistance = Config.Bind("1 - Physics (Server Synced)", "GrantFrostResistance", true,
                 new ConfigDescription("Grant Ullr's Frost Ward (Frost Resistance) while Mythic Skis or Snowboard are equipped.",
